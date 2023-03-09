@@ -14,7 +14,6 @@ typedef struct node {
   double value;
   int incomingEdges;
   int outgoingEdges;
-  pthread_mutex_t lock;
   struct node* next;
 }node;
 
@@ -23,18 +22,29 @@ typedef struct Graph {
   node** adjLists;
 }Graph;
 
-#define NUM_THREADS 2
-int A[10000] = {1,2,3,4,5,6};
-int B[6] = {1,2,3,4,5,6};
-int C[6];
+int NUM_THREADS;
+pthread_barrier_t barrier; 
 Graph* graph = NULL;
+
 
 void *do_work(void* voidarg) {
     struct thread_arg *arg = (struct thread_arg *)voidarg;
-    for(int i = arg->from; i < arg->to; i++) {
-        C[i] = A[i] + B[i];
-        printf("thread id: %d check graph position: %d\n" , arg->id , i);
+    for(int k=0; k<50; k++){
+      for(int i = arg->from; i <= arg->to; i++) {
+          // printf("thread id: %d check graph position: %d\n" , arg->id , i);
+          double sum = 0;
+          node *neigh = graph->adjLists[i];
+          for(int j=0; j<graph->adjLists[i]->outgoingEdges; j++){
+            // printf("id = %d neig = %d\n" , i , j);
+            sum += neigh->value / neigh->outgoingEdges;
+            neigh = neigh->next;
+          }
+          graph->adjLists[i]->value = 0.15 + 0.85*sum;
+          // printf("new id = %d\n" , i);
+      }
+      pthread_barrier_wait(&barrier);
     }
+    // printf("hello");
 }
 
 node* createNode(int v) {
@@ -43,7 +53,6 @@ node* createNode(int v) {
   newNode->value = 1.0;
   newNode->incomingEdges = 0;
   newNode->outgoingEdges = 0;
-  pthread_mutex_init(&newNode->lock,NULL);
   newNode->next = NULL;
   return newNode;
 }
@@ -82,7 +91,7 @@ void printGraph(Graph* graph) {
   int v;
   for (v = 0; v < graph->numVertices; v++) {
     struct node* temp = graph->adjLists[v];
-    printf("\n Vertex %d have incoming %d and outcoming %d\n: ", v , graph->adjLists[v]->incomingEdges , graph->adjLists[v]->outgoingEdges);
+    printf("\n Vertex %d have incoming %d and outcoming %d\n and value %f: ", v , graph->adjLists[v]->incomingEdges , graph->adjLists[v]->outgoingEdges , graph->adjLists[v]->value);
     while (temp) {
       printf("%d -> ", temp->vertex);
       temp = temp->next;
@@ -93,14 +102,15 @@ void printGraph(Graph* graph) {
 
 int main(int argc , char** argv) {
   char* fileName = argv[1];
-  // int numberThreads = atoi(argv[2]);
+  int NUM_THREADS = atoi(argv[2]);
+  pthread_barrier_init (&barrier, NULL, NUM_THREADS);
   char line[200];
   FILE* file = fopen(fileName, "r");
   if(!file){
       printf("\n Unable to open : %s ", fileName);
       return -1;
   }
-  long src, dst, vertices;
+  long src, dst, vertices=0;
 
   while (fgets(line, sizeof(line), file)) {
     if(line[0]=='#')continue;
@@ -112,7 +122,7 @@ int main(int argc , char** argv) {
   printf("%ld\n",vertices );
   fclose(file);
 
-  Graph *graph = createAGraph(vertices);
+  graph = createAGraph(vertices);
 
   file = fopen(fileName , "r");
   if(!file){
@@ -132,24 +142,26 @@ int main(int argc , char** argv) {
 
 
 
-  // struct thread_arg thread_arg[NUM_THREADS];
-  // int from = 0, to = vertices;
-  // int step = to / NUM_THREADS;
-  // int i ;
-  // for(i = 0; i < NUM_THREADS; i++) {
-  //     thread_arg[i].from = from;
-  //     thread_arg[i].to = (i < NUM_THREADS-1) ? (from + step) : to;
-  //     thread_arg[i].id = i;
-  //     from = thread_arg[i].to;
-  //     pthread_create(&thread_arg[i].thread, NULL, &do_work, &thread_arg[i]);
-  // }
+  struct thread_arg thread_arg[NUM_THREADS];
+  int from = 0, to = vertices-1;
+  int step = to / NUM_THREADS;
+  int i ;
+  for(i = 0; i < NUM_THREADS; i++) {
+      thread_arg[i].from = from;
+      thread_arg[i].to = (i < NUM_THREADS-1) ? (from + step) : to;
+      thread_arg[i].id = i;
+      // printf("thread %d from=%d , to=%d \n" , thread_arg[i].id , thread_arg[i].from , thread_arg[i].to);
+      from = thread_arg[i].to+1;
+      pthread_create(&thread_arg[i].thread, NULL, &do_work, &thread_arg[i]);
+  }
 
-  // for(i = 0; i < NUM_THREADS; i++) {
-  //   pthread_join(thread_arg[i].thread, NULL);
-  // }
+  for(i = 0; i < NUM_THREADS; i++) {
+    pthread_join(thread_arg[i].thread, NULL);
+  }
 
   // for(int i=0; i<6; i++){
   //     printf("%d" , C[i]);
   // }
+  printGraph(graph);
     return 0;
 }
