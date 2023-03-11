@@ -1,6 +1,8 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
+#include <ctype.h>
 
 struct thread_arg {
     int from;
@@ -11,7 +13,7 @@ struct thread_arg {
 
 typedef struct node {
   int vertex;
-  double value;
+  long double value;
   int incomingEdges;
   int outgoingEdges;
   struct node* next;
@@ -32,12 +34,15 @@ void *do_work(void* voidarg) {
     for(int k=0; k<50; k++){
       for(int i = arg->from; i <= arg->to; i++) {
           // printf("thread id: %d check graph position: %d\n" , arg->id , i);
-          double sum = 0;
+          long double sum = 0.0;
           node *neigh = graph->adjLists[i];
-          for(int j=0; j<graph->adjLists[i]->outgoingEdges; j++){
+          // if(!isdigit(neigh->value)) neigh->value = 1.0;
+          for(int j=0; j<graph->adjLists[i]->incomingEdges; j++){
             // printf("id = %d neig = %d\n" , i , j);
-            sum += neigh->value / neigh->outgoingEdges;
+            // printf("neight value = %Lf \n" , neigh->value);
+            sum += neigh->value / (double)neigh->outgoingEdges;
             neigh = neigh->next;
+            // printf("sum = %Lf\n" , sum);
           }
           graph->adjLists[i]->value = 0.15 + 0.85*sum;
           // printf("new id = %d\n" , i);
@@ -73,31 +78,49 @@ struct Graph* createAGraph(int vertices) {
 
 void addEdge(Graph* graph, int s, int d) {
   // Add edge from s to d
-  node* newNode = createNode(d);
-  newNode->next = graph->adjLists[s];
-  newNode->outgoingEdges = graph->adjLists[s]->outgoingEdges;
-  newNode->incomingEdges = graph->adjLists[s]->incomingEdges;
-  graph->adjLists[s] = newNode;
-  graph->adjLists[s]->outgoingEdges++;
-  graph->adjLists[d]->incomingEdges++;
+  // node* newNode = createNode(d);
+  // newNode->next = graph->adjLists[s];
+  // newNode->outgoingEdges = graph->adjLists[s]->outgoingEdges;
+  // newNode->incomingEdges = graph->adjLists[s]->incomingEdges;
+  // graph->adjLists[s] = newNode;
+  // graph->adjLists[s]->outgoingEdges++;
+  // graph->adjLists[d]->incomingEdges++;
 
   // Add edge from d to s
   // newNode = createNode(s);
   // newNode->next = graph->adjLists[d];
   // graph->adjLists[d]->next = newNode;
+  node* newNode = createNode(s);
+  newNode->next = graph->adjLists[d];
+  newNode->outgoingEdges = graph->adjLists[d]->outgoingEdges;
+  newNode->incomingEdges = graph->adjLists[d]->incomingEdges;
+  graph->adjLists[d] = newNode;
+
+  graph->adjLists[s]->outgoingEdges++;
+  graph->adjLists[d]->incomingEdges++;
 }
 
 void printGraph(Graph* graph) {
   int v;
   for (v = 0; v < graph->numVertices; v++) {
     struct node* temp = graph->adjLists[v];
-    printf("\n Vertex %d have incoming %d and outcoming %d\n and value %f: ", v , graph->adjLists[v]->incomingEdges , graph->adjLists[v]->outgoingEdges , graph->adjLists[v]->value);
+    printf("\n Vertex %d have incoming %d and outcoming %d\n and value %Lf: ", v , graph->adjLists[v]->incomingEdges , graph->adjLists[v]->outgoingEdges , graph->adjLists[v]->value);
     while (temp) {
       printf("%d -> ", temp->vertex);
       temp = temp->next;
     }
     printf("\n");
   }
+}
+
+void createCSV(Graph *graph){
+  FILE *f;
+  f = fopen("results.csv" , "w+");
+  fprintf(f , "node value\n");
+  for(int i=0; i<graph->numVertices; i++){
+    fprintf(f , "%d %Lf\n", i , graph->adjLists[i]->value);
+  }
+  fclose(f);
 }
 
 int main(int argc , char** argv) {
@@ -159,9 +182,7 @@ int main(int argc , char** argv) {
     pthread_join(thread_arg[i].thread, NULL);
   }
 
-  // for(int i=0; i<6; i++){
-  //     printf("%d" , C[i]);
-  // }
-  printGraph(graph);
-    return 0;
+  // printGraph(graph);
+  createCSV(graph);
+  return 0;
 }
