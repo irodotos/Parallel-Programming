@@ -13,7 +13,7 @@ struct thread_arg {
 
 typedef struct node {
   int vertex;
-  long double value;
+  double value;
   int incomingEdges;
   int outgoingEdges;
   struct node* next;
@@ -31,21 +31,23 @@ Graph* graph = NULL;
 
 void *do_work(void* voidarg) {
     struct thread_arg *arg = (struct thread_arg *)voidarg;
-    for(int k=0; k<50; k++){
+    for(int k=0; k<500; k++){
       for(int i = arg->from; i <= arg->to; i++) {
-          // printf("thread id: %d check graph position: %d\n" , arg->id , i);
-          long double sum = 0.0;
+          double sum = 0.0;
           node *neigh = graph->adjLists[i];
-          // if(!isdigit(neigh->value)) neigh->value = 1.0;
           for(int j=0; j<graph->adjLists[i]->incomingEdges; j++){
-            // printf("id = %d neig = %d\n" , i , j);
-            // printf("neight value = %Lf \n" , neigh->value);
+            if(neigh->outgoingEdges == 0) continue;
             sum += neigh->value / (double)neigh->outgoingEdges;
             neigh = neigh->next;
-            // printf("sum = %Lf\n" , sum);
           }
           graph->adjLists[i]->value = 0.15 + 0.85*sum;
-          // printf("new id = %d\n" , i);
+      }
+      pthread_barrier_wait(&barrier);
+      for(int i=arg->from; i<=arg->to; i++){
+        node *neigh = graph->adjLists[i];
+        for(int j=0; j<graph->adjLists[i]->incomingEdges; j++){
+          neigh->value = graph->adjLists[neigh->vertex]->value;
+        }
       }
       pthread_barrier_wait(&barrier);
     }
@@ -70,26 +72,12 @@ struct Graph* createAGraph(int vertices) {
 
   int i;
   for (i = 0; i < vertices; i++){
-    // graph->adjLists[i] = NULL;
     graph->adjLists[i] = createNode(i);
   }
   return graph;
 }
 
 void addEdge(Graph* graph, int s, int d) {
-  // Add edge from s to d
-  // node* newNode = createNode(d);
-  // newNode->next = graph->adjLists[s];
-  // newNode->outgoingEdges = graph->adjLists[s]->outgoingEdges;
-  // newNode->incomingEdges = graph->adjLists[s]->incomingEdges;
-  // graph->adjLists[s] = newNode;
-  // graph->adjLists[s]->outgoingEdges++;
-  // graph->adjLists[d]->incomingEdges++;
-
-  // Add edge from d to s
-  // newNode = createNode(s);
-  // newNode->next = graph->adjLists[d];
-  // graph->adjLists[d]->next = newNode;
   node* newNode = createNode(s);
   newNode->next = graph->adjLists[d];
   newNode->outgoingEdges = graph->adjLists[d]->outgoingEdges;
@@ -104,7 +92,7 @@ void printGraph(Graph* graph) {
   int v;
   for (v = 0; v < graph->numVertices; v++) {
     struct node* temp = graph->adjLists[v];
-    printf("\n Vertex %d have incoming %d and outcoming %d\n and value %Lf: ", v , graph->adjLists[v]->incomingEdges , graph->adjLists[v]->outgoingEdges , graph->adjLists[v]->value);
+    printf("\n Vertex %d have incoming %d and outcoming %d\n and value %f: ", v , graph->adjLists[v]->incomingEdges , graph->adjLists[v]->outgoingEdges , graph->adjLists[v]->value);
     while (temp) {
       printf("%d -> ", temp->vertex);
       temp = temp->next;
@@ -118,7 +106,7 @@ void createCSV(Graph *graph){
   f = fopen("results.csv" , "w+");
   fprintf(f , "node value\n");
   for(int i=0; i<graph->numVertices; i++){
-    fprintf(f , "%d %Lf\n", i , graph->adjLists[i]->value);
+    fprintf(f , "%d , %f\n", i , graph->adjLists[i]->value);
   }
   fclose(f);
 }
@@ -142,7 +130,6 @@ int main(int argc , char** argv) {
     if(dst > vertices) vertices=dst;
   }
   vertices++;
-  printf("%ld\n",vertices );
   fclose(file);
 
   graph = createAGraph(vertices);
@@ -160,9 +147,7 @@ int main(int argc , char** argv) {
   }
   fclose(file);
 
-  printGraph(graph);
-
-
+  // printGraph(graph);
 
 
   struct thread_arg thread_arg[NUM_THREADS];
@@ -173,7 +158,6 @@ int main(int argc , char** argv) {
       thread_arg[i].from = from;
       thread_arg[i].to = (i < NUM_THREADS-1) ? (from + step) : to;
       thread_arg[i].id = i;
-      // printf("thread %d from=%d , to=%d \n" , thread_arg[i].id , thread_arg[i].from , thread_arg[i].to);
       from = thread_arg[i].to+1;
       pthread_create(&thread_arg[i].thread, NULL, &do_work, &thread_arg[i]);
   }
@@ -182,7 +166,6 @@ int main(int argc , char** argv) {
     pthread_join(thread_arg[i].thread, NULL);
   }
 
-  // printGraph(graph);
   createCSV(graph);
   return 0;
 }
