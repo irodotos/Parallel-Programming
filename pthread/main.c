@@ -27,6 +27,7 @@ typedef struct Graph {
 int NUM_THREADS;
 pthread_barrier_t barrier; 
 Graph* graph = NULL;
+int edges = 0;
 
 
 void *do_work(void* voidarg) {
@@ -34,24 +35,25 @@ void *do_work(void* voidarg) {
     for(int k=0; k<500; k++){
       for(int i = arg->from; i <= arg->to; i++) {
           double sum = 0.0;
-          node *neigh = graph->adjLists[i];
-          for(int j=0; j<graph->adjLists[i]->incomingEdges; j++){
-            if(neigh->outgoingEdges == 0) continue;
-            sum += neigh->value / (double)neigh->outgoingEdges;
+          node *neigh = graph->adjLists[i]->next;
+          while(neigh){
+            // printf("eimai stin thesi %d kai neight = %d kai exi ougoing=%d kai incoming=%d \n" , graph->adjLists[i]->vertex , neigh->vertex , neigh->outgoingEdges , neigh->incomingEdges);
+            sum += neigh->value / graph->adjLists[neigh->vertex]->outgoingEdges;
             neigh = neigh->next;
           }
+          // printf("node %d sum= %f\n" , graph->adjLists[i]->vertex , sum);
           graph->adjLists[i]->value = 0.15 + 0.85*sum;
       }
       pthread_barrier_wait(&barrier);
       for(int i=arg->from; i<=arg->to; i++){
-        node *neigh = graph->adjLists[i];
-        for(int j=0; j<graph->adjLists[i]->incomingEdges; j++){
+        node *neigh = graph->adjLists[i]->next;
+        while(neigh){
           neigh->value = graph->adjLists[neigh->vertex]->value;
+          neigh = neigh->next;
         }
       }
       pthread_barrier_wait(&barrier);
     }
-    // printf("hello");
 }
 
 node* createNode(int v) {
@@ -78,11 +80,11 @@ struct Graph* createAGraph(int vertices) {
 }
 
 void addEdge(Graph* graph, int s, int d) {
+  edges++;
   node* newNode = createNode(s);
-  newNode->next = graph->adjLists[d];
-  newNode->outgoingEdges = graph->adjLists[d]->outgoingEdges;
-  newNode->incomingEdges = graph->adjLists[d]->incomingEdges;
-  graph->adjLists[d] = newNode;
+  node *tmp = graph->adjLists[d];
+  while(tmp->next != NULL) tmp = tmp->next;
+  tmp->next = newNode;
 
   graph->adjLists[s]->outgoingEdges++;
   graph->adjLists[d]->incomingEdges++;
@@ -130,6 +132,7 @@ int main(int argc , char** argv) {
     if(dst > vertices) vertices=dst;
   }
   vertices++;
+  // printf("vertices = %ld\n" , vertices);
   fclose(file);
 
   graph = createAGraph(vertices);
@@ -148,7 +151,7 @@ int main(int argc , char** argv) {
   fclose(file);
 
   // printGraph(graph);
-
+  // printf("edges = %d\n" , edges);
 
   struct thread_arg thread_arg[NUM_THREADS];
   int from = 0, to = vertices-1;
@@ -158,6 +161,7 @@ int main(int argc , char** argv) {
       thread_arg[i].from = from;
       thread_arg[i].to = (i < NUM_THREADS-1) ? (from + step) : to;
       thread_arg[i].id = i;
+      // printf("thread %d from=%d , to=%d \n" , thread_arg[i].id , thread_arg[i].from , thread_arg[i].to);
       from = thread_arg[i].to+1;
       pthread_create(&thread_arg[i].thread, NULL, &do_work, &thread_arg[i]);
   }
