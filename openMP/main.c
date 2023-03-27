@@ -52,19 +52,31 @@ int main(int argc , char** argv){
         row++;
     }
 
-    #pragma omp paraller for
+    #pragma omp paraller for shared(arr)
     {
         int numOfAliveNeighboars=0;
         for(int gen=0; gen<numGenerations; gen++){
             for(int i=0; i<numRow; i++){
                 for(int j=0; j<numCol; j++){
                     numOfAliveNeighboars = cnt_of_alive_neighboars(i , j , arr);
-                    printf("%d\n" , numOfAliveNeighboars);
+                    // printf("%d\n" , numOfAliveNeighboars);
                     // printf("2");
-                    if(arr[i][j]=='*' && (numOfAliveNeighboars < 2)) arr[i][j]==' ';
-                    else if(arr[i][j]=='*' && (numOfAliveNeighboars > 3)) arr[i][j]==' ';
-                    else if(arr[i][j]=='*' && ( (numOfAliveNeighboars == 3) || (numOfAliveNeighboars == 2) ) ) continue;
-                    else if(arr[i][j]==' ' && (numOfAliveNeighboars == 3)) arr[i][j]=='*';        
+                    if(arr[i][j]=='*' && (numOfAliveNeighboars < 2)) {
+                        arr[i][j]=' ';
+                        printf("1\n");
+                    }
+                    else if(arr[i][j]=='*' && (numOfAliveNeighboars > 3)){
+                        arr[i][j]=' ';
+                        printf("2\n");
+                    }
+                    else if(arr[i][j]=='*' && ( (numOfAliveNeighboars == 3) || (numOfAliveNeighboars == 2) ) ) {
+                        printf("3\n");
+                        continue;
+                    }
+                    else if(arr[i][j]==' ' && (numOfAliveNeighboars == 3)){
+                        arr[i][j]='*';        
+                        printf("4\n");
+                    }
                 }
             }
         }
