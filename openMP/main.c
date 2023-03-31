@@ -6,7 +6,7 @@
 int numRow , numCol;
 
 
-int cnt_of_alive_neighboars(int row , int col , char arr[numRow][numCol]){
+int cnt_of_alive_neighboars(int row , int col , char** arr){
     int cnt=0;
     for(int i=row-1; i<=row+1; i++){
         for(int j=col-1; j<=col+1; j++){
@@ -35,9 +35,13 @@ int main(int argc , char** argv){
     read = getline(&line, &len, file);
     sscanf(line, "%d %d",&numRow,&numCol);
     printf("numRow = %d and numCol=%d \n" , numRow , numCol);
-    char arr[numRow][numCol];
-
-
+    char *arr[numRow];
+    char *tmp[numRow];
+    for(int i=0; i<numRow; i++){
+        arr[i] = (char*)malloc(numCol * sizeof(char));
+        tmp[i] = (char*)malloc(numCol * sizeof(char));
+    }
+    
     int row=0,col=0;
     while ((read = getline(&line, &len, file)) != -1) {
         // printf("Retrieved line of length %zu:\n", read);
@@ -52,8 +56,8 @@ int main(int argc , char** argv){
         row++;
     }
 
-    #pragma omp paraller for shared(arr)
-    {
+    // #pragma omp paraller for shared(arr)
+    // {
         int numOfAliveNeighboars=0;
         for(int gen=0; gen<numGenerations; gen++){
             for(int i=0; i<numRow; i++){
@@ -62,33 +66,46 @@ int main(int argc , char** argv){
                     // printf("%d\n" , numOfAliveNeighboars);
                     // printf("2");
                     if(arr[i][j]=='*' && (numOfAliveNeighboars < 2)) {
-                        arr[i][j]=' ';
-                        printf("1\n");
+                        // arr[i][j]=' ';
+                        tmp[i][j]='0';
                     }
                     else if(arr[i][j]=='*' && (numOfAliveNeighboars > 3)){
-                        arr[i][j]=' ';
-                        printf("2\n");
+                        // arr[i][j]=' ';
+                        tmp[i][j]='1';
                     }
                     else if(arr[i][j]=='*' && ( (numOfAliveNeighboars == 3) || (numOfAliveNeighboars == 2) ) ) {
-                        printf("3\n");
+                        // tmp[i][j]='2';
                         continue;
                     }
                     else if(arr[i][j]==' ' && (numOfAliveNeighboars == 3)){
-                        arr[i][j]='*';        
-                        printf("4\n");
+                        // arr[i][j]='*';        
+                        tmp[i][j]='3';        
+                        // printf("4\n");
+                    }
+                }
+            }
+            for(int i=0; i<numRow; i++){
+                for(int j=0; j<numCol; j++){
+                    if(tmp[i][j]=='0' || tmp[i][j]=='1'){
+                        arr[i][j]=' ';
+                        tmp[i][j]=' ';
+                    }
+                    else if(tmp[i][j]=='3'){
+                        arr[i][j]='*';
+                        tmp[i][j]=' ';
                     }
                 }
             }
         }
-    }
+    // }
 
 
-    for(int i=0; i<numRow; i++){
-        for(int j=0; j<numCol; j++){
-            printf("%c" , arr[i][j]);
-        }
-        printf("\n");
-    }
+    // for(int i=0; i<numRow; i++){
+    //     for(int j=0; j<numCol; j++){
+    //         printf("%c" , arr[i][j]);
+    //     }
+    //     printf("\n");
+    // }
 
     return 0;
 }
