@@ -12,7 +12,6 @@ int cnt_of_alive_neighboars(int row , int col , char** arr){
         for(int j=col-1; j<=col+1; j++){
             if( (i<0 || i>=numRow) || (j<0 || j>=numCol) || (i==row && j==col) ) continue;
             if(arr[i][j] == '*') cnt++;
-            // printf("1");
         }
     }
     return cnt;
@@ -44,8 +43,6 @@ int main(int argc , char** argv){
     
     int row=0,col=0;
     while ((read = getline(&line, &len, file)) != -1) {
-        // printf("Retrieved line of length %zu:\n", read);
-        // printf("%s", line);
         col=0;
         for(int i =0; i<len; i++){
             if(line[i]=='|' || line[i]=='\n') continue;
@@ -56,36 +53,32 @@ int main(int argc , char** argv){
         row++;
     }
 
-    // #pragma omp paraller for shared(arr)
-    // {
-        int numOfAliveNeighboars=0;
-        for(int gen=0; gen<numGenerations; gen++){
+        
+    for(int gen=0; gen<numGenerations; gen++){
+        // printf("----------------------\n");
+        #pragma omp parallel for shared(arr , tmp)
             for(int i=0; i<numRow; i++){
                 for(int j=0; j<numCol; j++){
-                    numOfAliveNeighboars = cnt_of_alive_neighboars(i , j , arr);
+                    int numOfAliveNeighboars = cnt_of_alive_neighboars(i , j , arr);
                     // printf("%d\n" , numOfAliveNeighboars);
-                    // printf("2");
                     if(arr[i][j]=='*' && (numOfAliveNeighboars < 2)) {
-                        // arr[i][j]=' ';
                         tmp[i][j]='0';
                     }
                     else if(arr[i][j]=='*' && (numOfAliveNeighboars > 3)){
-                        // arr[i][j]=' ';
                         tmp[i][j]='1';
                     }
                     else if(arr[i][j]=='*' && ( (numOfAliveNeighboars == 3) || (numOfAliveNeighboars == 2) ) ) {
-                        // tmp[i][j]='2';
                         continue;
                     }
                     else if(arr[i][j]==' ' && (numOfAliveNeighboars == 3)){
-                        // arr[i][j]='*';        
                         tmp[i][j]='3';        
-                        // printf("4\n");
                     }
                 }
             }
+        #pragma omp parallel for shared(arr , tmp)
             for(int i=0; i<numRow; i++){
                 for(int j=0; j<numCol; j++){
+                // printf("%d\n" , omp_get_thread_num());
                     if(tmp[i][j]=='0' || tmp[i][j]=='1'){
                         arr[i][j]=' ';
                         tmp[i][j]=' ';
@@ -96,10 +89,9 @@ int main(int argc , char** argv){
                     }
                 }
             }
-        }
-    // }
+    }
 
-
+    // PRINT THE ARRAY
     // for(int i=0; i<numRow; i++){
     //     for(int j=0; j<numCol; j++){
     //         printf("%c" , arr[i][j]);
